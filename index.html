@@ -40,6 +40,20 @@
     position: relative;
     overflow: hidden;
   }
+  .header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    position: relative;
+    z-index: 1;
+  }
+  .header-logo {
+    width: clamp(80px, 15vw, 140px);
+    height: auto;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+    flex-shrink: 0;
+  }
   .header::before {
     content: '';
     position: absolute;
@@ -470,6 +484,8 @@
 
   @media (max-width: 640px) {
     .header { padding: 1.2rem 0.8rem; }
+    .header-content { flex-direction: column; gap: 0.8rem; }
+    .header-logo { width: clamp(70px, 25vw, 110px); }
     .container { padding: 0.5rem; }
     .tabs { gap: 0.3rem; }
     .tab { padding: 0.6rem 0.5rem; font-size: 0.8rem; min-width: 100px; }
@@ -486,9 +502,14 @@
 <body>
 
 <div class="header">
-  <h1>PICACHO CHALLENGE</h1>
-  <div class="subtitle">Bucaramanga - Santander | 6 de Septiembre 2026</div>
-  <div class="event-badge">Resultados Oficiales</div>
+  <div class="header-content">
+    <img src="logo-tct.png" alt="TCT Timers" class="header-logo" onerror="this.style.display='none'">
+    <div>
+      <h1>PICACHO CHALLENGE</h1>
+      <div class="subtitle">Bucaramanga - Santander | 6 de Septiembre 2026</div>
+      <div class="event-badge">Resultados Oficiales</div>
+    </div>
+  </div>
 </div>
 
 <div class="container">
