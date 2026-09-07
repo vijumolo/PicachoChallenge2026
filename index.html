@@ -518,6 +518,10 @@
         <label>Buscar nombre</label>
         <input type="text" id="searchInput" placeholder="Escriba un nombre..." oninput="applyFilters()">
       </div>
+      <div class="filter-group" style="max-width:160px">
+        <label>Buscar por placa</label>
+        <input type="text" id="placaInput" placeholder="Ej: 613" oninput="applyFilters()">
+      </div>
     </div>
   </div>
 
@@ -7320,13 +7324,19 @@ function applyFilters() {
   }
   
   const search = document.getElementById('searchInput').value.toLowerCase().trim();
+  const placaSearch = document.getElementById('placaInput').value.toLowerCase().trim();
   let participants = getAllParticipants();
   
   if (search) {
     participants = participants.filter(p =>
       p.nombre.toLowerCase().includes(search) ||
-      p.ciudad.toLowerCase().includes(search) ||
-      p.placa.toString().includes(search)
+      p.ciudad.toLowerCase().includes(search)
+    );
+  }
+  
+  if (placaSearch) {
+    participants = participants.filter(p =>
+      p.placa.toString().toLowerCase().includes(placaSearch)
     );
   }
   
@@ -7396,12 +7406,19 @@ function renderPairs() {
   resultsContainer.innerHTML = '';
   
   const search = document.getElementById('searchInput').value.toLowerCase().trim();
+  const placaSearch = document.getElementById('placaInput').value.toLowerCase().trim();
   let pairs = DATA.parejas || [];
   
   if (search) {
     pairs = pairs.filter(p =>
       p.name.toLowerCase().includes(search) ||
       p.members.some(m => m.nombre.toLowerCase().includes(search) || m.ciudad.toLowerCase().includes(search))
+    );
+  }
+  
+  if (placaSearch) {
+    pairs = pairs.filter(p =>
+      p.members.some(m => m.chip.toString().toLowerCase().includes(placaSearch))
     );
   }
   
