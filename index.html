@@ -7543,16 +7543,19 @@ async function showDiploma() {
 
     if (currentMode === 'parejas' || currentCategoryName === 'Parejas') {
       const pairName = currentAthlete ? currentAthlete.nombre.toUpperCase() : '';
-      const normalizedPair = pairName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const nPair = pairName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const pairParts = nPair.split(/\s+/).filter(p => p.length > 1 && p !== 'Y');
+      const pairRegex = new RegExp(pairParts.join('\\s+'), 'i');
       
       for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items.map(item => item.str).join(' ').toUpperCase()
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ').trim();
         
-        const pairParts = normalizedPair.split(/\s+/).filter(p => p.length > 1 && p !== 'Y');
-        if (pairParts.length > 0 && pairParts.every(part => pageText.includes(part))) {
+        if (pairRegex.test(pageText)) {
           foundPage = i;
           break;
         }
@@ -7560,17 +7563,17 @@ async function showDiploma() {
     } else {
       const athletePlaca = currentAthlete ? currentAthlete.placa.toString() : '';
       
-      function normalizeText(str) {
+      function norm(str) {
         return str.toUpperCase()
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
           .replace(/[^A-Z0-9\s]/g, ' ')
           .replace(/\s+/g, ' ').trim();
       }
       
-      const normalizedAthleteName = normalizeText(athleteName);
-      const nameParts = normalizedAthleteName.split(/\s+/).filter(p => p.length > 2);
-      const apellido = nameParts.length > 0 ? nameParts[0] : '';
-      const nombre = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      const nName = norm(athleteName);
+      const parts = nName.split(/\s+/).filter(p => p.length > 1);
+      
+      const fullPhraseRegex = new RegExp(parts.join('\\s+'), 'i');
       
       const candidatePages = [];
       let exactMatch = false;
@@ -7578,31 +7581,26 @@ async function showDiploma() {
       for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = normalizeText(textContent.items.map(item => item.str).join(' '));
+        const pageText = norm(textContent.items.map(item => item.str).join(' '));
         
-        const hasAllParts = nameParts.length > 0 && nameParts.every(part => pageText.includes(part));
-        const hasApellido = apellido && pageText.includes(apellido);
+        const hasFullPhrase = fullPhraseRegex.test(pageText);
         const hasPlaca = athletePlaca && pageText.includes(athletePlaca);
         
-        if (hasAllParts) {
+        if (hasFullPhrase) {
           foundPage = i;
           exactMatch = true;
           break;
         }
         
-        if (hasApellido && nombre && pageText.includes(nombre)) {
-          candidatePages.push({ page: i, score: 2 });
-        } else if (hasPlaca) {
-          candidatePages.push({ page: i, score: 3 });
-        } else if (hasApellido && nameParts.length <= 2) {
-          candidatePages.push({ page: i, score: 1 });
+        if (hasPlaca) {
+          candidatePages.push({ page: i, score: 10 });
         }
       }
       
       if (foundPage === -1 && candidatePages.length > 0) {
         candidatePages.sort((a, b) => b.score - a.score);
         foundPage = candidatePages[0].page;
-        exactMatch = candidatePages[0].score >= 2;
+        exactMatch = false;
       }
       
       window._diplomaExactMatch = exactMatch;
@@ -7665,7 +7663,7 @@ async function showDiploma() {
     const info = document.createElement('div');
     const isExact = window._diplomaExactMatch;
     const matchColor = isExact ? 'var(--pastel-green)' : 'var(--pastel-yellow)';
-    const matchText = isExact ? 'Busqueda exacta por nombre' : 'Busqueda aproximada - verifique que el diploma corresponde';
+    const matchText = isExact ? 'Diploma verificado por nombre' : 'Diploma por posicion - verifique que corresponde';
     info.style.cssText = 'text-align:center;padding:0.5rem;font-size:0.75rem;color:var(--text-secondary);border-top:1px solid var(--border-light);margin-top:0.5rem';
     info.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + matchColor + ';margin-right:0.3rem;vertical-align:middle"></span>' + matchText + '<br>Pagina ' + foundPage + ' de ' + numPages + ' - ' + diplomaPath.split('/').pop();
 
