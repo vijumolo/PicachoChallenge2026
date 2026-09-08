@@ -7571,35 +7571,46 @@ async function showDiploma() {
       }
       
       const nName = norm(athleteName);
-      const parts = nName.split(/\s+/).filter(p => p.length > 1);
+      const nameRegex = new RegExp(nName.replace(/\s+/g, '\\s+'), 'i');
       
-      const fullPhraseRegex = new RegExp(parts.join('\\s+'), 'i');
-      
-      const candidatePages = [];
       let exactMatch = false;
+      let dorsalPage = -1;
+      let namePage = -1;
       
       for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = norm(textContent.items.map(item => item.str).join(' '));
         
-        const hasFullPhrase = fullPhraseRegex.test(pageText);
-        const hasPlaca = athletePlaca && pageText.includes(athletePlaca);
+        const rawStrs = textContent.items.map(item => item.str);
+        const joinedNoSpace = rawStrs.join('');
+        const joinedSpace = rawStrs.join(' ');
+        const normalized = norm(joinedSpace);
         
-        if (hasFullPhrase) {
-          foundPage = i;
+        if (nameRegex.test(joinedSpace) || nameRegex.test(normalized)) {
+          namePage = i;
           exactMatch = true;
           break;
         }
         
-        if (hasPlaca) {
-          candidatePages.push({ page: i, score: 10 });
+        if (dorsalPage === -1 && athletePlaca) {
+          for (const s of rawStrs) {
+            const clean = s.trim().replace(/[^0-9]/g, '');
+            if (clean === athletePlaca) {
+              dorsalPage = i;
+              break;
+            }
+          }
         }
       }
       
-      if (foundPage === -1 && candidatePages.length > 0) {
-        candidatePages.sort((a, b) => b.score - a.score);
-        foundPage = candidatePages[0].page;
+      if (namePage !== -1) {
+        foundPage = namePage;
+      } else if (dorsalPage !== -1) {
+        foundPage = dorsalPage;
+        exactMatch = false;
+      } else {
+        const pos = parseInt(currentAthlete?.puesto) || 1;
+        foundPage = (pos > 0 && pos <= numPages) ? pos : 1;
         exactMatch = false;
       }
       
