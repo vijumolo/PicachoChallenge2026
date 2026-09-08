@@ -7417,8 +7417,36 @@ function renderTable(participants) {
 
 function goPage(p) {
   currentPage = p;
-  applyFilters();
+  if (currentMode === 'parejas') {
+    renderPairs();
+  } else {
+    renderTableFromFilters();
+  }
   window.scrollTo({ top: 300, behavior: 'smooth' });
+}
+
+function renderTableFromFilters() {
+  const search = document.getElementById('searchInput').value.toLowerCase().trim();
+  const placaSearch = document.getElementById('placaInput').value.toLowerCase().trim();
+  let participants = getAllParticipants();
+  
+  if (search) {
+    participants = participants.filter(p =>
+      p.nombre.toLowerCase().includes(search) ||
+      p.ciudad.toLowerCase().includes(search)
+    );
+  }
+  
+  if (placaSearch) {
+    participants = participants.filter(p =>
+      p.placa.toString().toLowerCase().includes(placaSearch)
+    );
+  }
+  
+  document.getElementById('statTotal').textContent = `Total: ${getAllParticipants().length}`;
+  document.getElementById('statShown').textContent = `Mostrando: ${participants.length}`;
+  
+  renderTable(participants);
 }
 
 function renderPairs() {
@@ -7571,7 +7599,22 @@ async function showDiploma() {
       }
       
       const nName = norm(athleteName);
-      const nameRegex = new RegExp(nName.replace(/\s+/g, '\\s+'), 'i');
+      let firstName = '', lastName = '';
+      if (nName.includes(',')) {
+        const parts = nName.split(',').map(p => p.trim()).filter(p => p);
+        lastName = parts[0] || '';
+        firstName = parts.slice(1).join(' ') || '';
+      } else {
+        firstName = nName;
+      }
+      
+      const fullNameFL = (firstName + ' ' + lastName).trim();
+      const regexFL = fullNameFL ? new RegExp(fullNameFL.replace(/\s+/g, '\\s+'), 'i') : null;
+      const regexLF = nName ? new RegExp(nName.replace(/\s+/g, '\\s+'), 'i') : null;
+      
+      const firstNameParts = firstName.split(/\s+/).filter(p => p.length > 1);
+      const lastNameParts = lastName.split(/\s+/).filter(p => p.length > 1);
+      const allParts = [...firstNameParts, ...lastNameParts];
       
       let exactMatch = false;
       let dorsalPage = -1;
@@ -7579,17 +7622,23 @@ async function showDiploma() {
       
       for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        
-        const rawStrs = textContent.items.map(item => item.str);
-        const joinedNoSpace = rawStrs.join('');
+        const tc = await page.getTextContent();
+        const rawStrs = tc.items.map(item => item.str);
         const joinedSpace = rawStrs.join(' ');
         const normalized = norm(joinedSpace);
         
-        if (nameRegex.test(joinedSpace) || nameRegex.test(normalized)) {
+        const textHasFL = regexFL && (regexFL.test(joinedSpace) || regexFL.test(normalized));
+        const textHasLF = regexLF && (regexLF.test(joinedSpace) || regexLF.test(normalized));
+        
+        if (namePage === -1 && (textHasFL || textHasLF)) {
           namePage = i;
-          exactMatch = true;
-          break;
+        }
+        
+        if (namePage === -1 && allParts.length >= 2) {
+          const allPresent = allParts.every(part => normalized.includes(part));
+          if (allPresent) {
+            namePage = i;
+          }
         }
         
         if (dorsalPage === -1 && athletePlaca) {
@@ -7601,13 +7650,16 @@ async function showDiploma() {
             }
           }
         }
+        
+        if (namePage !== -1 && dorsalPage !== -1) break;
       }
       
       if (namePage !== -1) {
         foundPage = namePage;
+        exactMatch = true;
       } else if (dorsalPage !== -1) {
         foundPage = dorsalPage;
-        exactMatch = false;
+        exactMatch = true;
       } else {
         const pos = parseInt(currentAthlete?.puesto) || 1;
         foundPage = (pos > 0 && pos <= numPages) ? pos : 1;
